@@ -1,0 +1,148 @@
+CREATE TABLE `SKU维度` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `货物编码` VARCHAR(30) DEFAULT NULL,
+  `订单量` INT(11) DEFAULT NULL,
+  `发货量` INT(11) DEFAULT NULL,
+  `发货占比`  numeric(8,4) DEFAULT  NULL,
+  `SKU属性` VARCHAR(30) DEFAULT NULL, 
+   PRIMARY KEY (`id`),
+   KEY `货物编码`(`货物编码`)
+ ) ENGINE=MYISAM;  
+select '建立Sku维度表格' as 'step 1';
+ 
+ 
+ insert into SKU维度(货物编码,订单量,发货量)
+ select 货物编码, sum(订单量),sum(发货量)
+ from 发货明细
+ group by 货物编码
+ order by sum(发货量) DESC;
+ select '计算sku销量' as 'step 2';
+
+select sum(发货量) into @s from sku维度; 
+update sku维度 set 发货占比 = 发货量/@s;
+select '计算sku销量占比' as 'step 3';
+ 
+  
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sumRate`(in TOTALRATE decimal(10,8),out II int,out SS decimal(10,8))
+BEGIN
+select 1 into @i;
+select 0.0 into @s;
+while @s<TOTALRATE
+do
+select sum(发货占比) into @s from sku维度 where id<@i+1;
+set @i=@i+1;
+end while;
+select @i into II;
+select @s into SS;
+END;
+
+call sumrate(0.7,@id1,@s1) ; 
+call sumrate(0.9,@id2,@s2) ; 
+
+update sku维度
+set sku属性 = (case
+        when id <(@id1-1)  then 'A'  
+        when id >(@id2-1)  then 'C'  
+        else 'B' 
+        END ) ; 
+select '计算sku销售属性' as 'step 4';
+
+
+********************************************************************************************************************************************************
+ 
+CREATE TABLE `日期维度` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `日期` date DEFAULT NULL,
+  `货物类别` INT(11) DEFAULT NULL,
+  `总订单数` INT(11) DEFAULT NULL,
+  `动销SKU数` INT(11) DEFAULT NULL,
+  `出库订单行数` INT(11) DEFAULT NULL, 
+  `出库总件数` INT(11) DEFAULT NULL,
+   PRIMARY KEY (`id`)
+   )ENGINE=MYISAM;
+select '建立日期维度表' as 'step 5';	
+
+ insert into 日期维度(日期,总订单数,动销sku数,出库订单行数,出库总件数)
+ select DATE(发货时间),count(distinct 客户单号),count(distinct 货物编码),count(订单号),sum(发货量)
+ from 发货明细
+ group by DATE(发货时间);
+ select '计算动销sku' as 'step 6';
+ 
+		
+********************************************************************************************************************************************************		
+CREATE TABLE `订单号维度` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+   `订单号` VARCHAR(30) DEFAULT NULL,
+   `订单行数` INT(11) DEFAULT NULL,
+   `订单件数` INT(11) DEFAULT NULL,
+   `year` INT(11) DEFAULT NULL,
+   `month` INT(11) DEFAULT NULL,
+   `day` INT(11) DEFAULT NULL,
+   `hour` INT(11) DEFAULT NULL,
+   `A类订单行数` INT(11) DEFAULT NULL,
+   `A类订单件数` INT(11) DEFAULT NULL,
+   `B类订单行数` INT(11) DEFAULT NULL,
+   `B类订单件数` INT(11) DEFAULT NULL,
+   `C类订单行数` INT(11) DEFAULT NULL,
+   `C类订单件数` INT(11) DEFAULT NULL,
+   `订单属性` VARCHAR(30) DEFAULT NULL,  
+   PRIMARY KEY (`id`),
+   KEY `订单号`(`订单号`)
+ ) ENGINE=MYISAM;   
+ select '建立订单号维度表' as 'step 7';	
+ 
+insert into 订单号维度 (订单号,订单行数,订单件数,year,month,day,hour) 
+SELECT distinct(订单号),count(distinct 货物编码),sum(发货量),year(下单时间),month(下单时间),dayofmonth(下单时间),hour(下单时间)
+FROM 发货明细
+group by 订单号;
+select '订单号维度总数计算' as 'step 8';	 
+
+
+alter table 发货明细 add sku属性 char(10);
+
+update 发货明细 a,SKU维度 b
+set a.sku属性=b.sKu属性
+where a.货物编码=b.货物编码;  
+select '给原始销售表增加skuABC属性' as 'step 9';
+
+
+ drop table temp;
+create temporary table temp 
+select 订单号,SKU属性,count(distinct 货物编码) as OL,sum(发货量) as 发货量
+from 发货明细
+group by 订单号,SKU属性;
+select 'temp' as 'step 10';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.A类订单行数=b.OL , a.A类订单件数=b.发货量
+where b.SKU属性='A';
+select 'A' as 'step 11';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.B类订单行数=b.OL,a.B类订单件数=b.发货量
+where b.SKU属性='B';
+select 'B' as 'step 12';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.C类订单行数=b.OL,a.C类订单件数=b.发货量
+where b.SKU属性='C';	
+select 'B' as 'step 13';
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+		
+		
+		
