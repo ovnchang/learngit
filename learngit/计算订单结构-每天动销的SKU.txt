@@ -1,0 +1,33 @@
+create temporary table temp 
+select 订单号,种类包含,count(种类包含) as olLine, sum(发货单元) as 发货单元 
+from 宏实验 
+group by 订单号,种类包含;
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.A类订单行=b.olline
+where b.种类包含='A';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.C类订单行=b.olline
+where b.种类包含='C';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.A类发货单元=b.发货单元
+where b.种类包含='A';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.C类发货单元=b.发货单元
+where b.种类包含='C';
+
+
+计算每天动销的SKU
+insert into 发货动销 (日期,订单数,sku数,出库件数) SELECT  DATE(下单时间) , count(distinct 订单号) ,count(distinct 货物编码) , sum(发货量) FROM 7月15日至8月15日
+group by DATE(下单时间);
