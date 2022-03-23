@@ -1,0 +1,286 @@
+insert into 订单号维度 (订单号,订单行数,订单件数,year,month,day,hour,订单属性) 
+SELECT 订单号,count(distinct 货物编码),sum(发货量),year(发货时间),month(发货时间),dayofmonth(发货时间),hour(发货时间),作业模式
+FROM 发货明细
+group by 订单号;
+select '订单号维度总数计算' as 'step 1';	 
+
+create temporary table temp 
+select 订单号,sku属性,count(distinct 货物编码) as OL,sum(发货量) as 发货量
+from 发货明细
+group by 订单号,sku属性;
+
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.top100订单行数=b.OL , a.top100订单件数=b.发货量
+where b.SKU属性='top100';
+
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.top2000订单行数=b.OL , a.top2000订单件数=b.发货量
+where b.SKU属性='top2000';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.top5000订单行数=b.OL , a.top5000订单件数=b.发货量
+where b.SKU属性='top5000';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.top10000订单行数=b.OL , a.top10000订单件数=b.发货量
+where b.SKU属性='top10000';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.10000以外订单行数=b.OL , a.10000以外订单件数=b.发货量
+where b.SKU属性='top10000以外';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.羽绒订单行数=b.OL , a.羽绒订单件数=b.发货量
+where b.SKU属性='羽绒';
+
+
+create temporary table temp 
+select 订单号,货架内外,count(distinct 货物编码) as OL,sum(发货量) as 发货量
+from 发货明细
+group by 订单号,货架内外;
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.箱式系统内行数=b.OL , a.箱式系统内件数=b.发货量
+where b.货架内外='货架内';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.箱式系统外行数=b.OL , a.箱式系统外件数=b.发货量
+where b.货架内外='货架外';
+
+
+
+
+
+
+insert into 日期维度(日期,总订单数,动销sku数,出库总行数,出库总件数)
+select DATE(发货时间),count(distinct 订单号),count(distinct 货物编码),count(货物编码),sum(发货量)
+from 发货明细
+group by DATE(发货时间);
+
+drop table temp;
+
+create temporary table temp 
+select DATE(发货时间)as 日期,sku属性 as sku属性,count(distinct 货物编码) as 动销sku,count(货物编码)as 订单行,SUM(发货量)as 发货量
+from 发货明细
+group by DATE(发货时间),sku属性;
+select 'temp' as 'step 10';
+
+update 日期维度 as a
+inner join temp as b 
+on a.日期=b.日期 and b.sku属性='top100'
+set a.top100动销=b.动销sku,a.top100行数=b.订单行,a.top100件数=b.发货量;
+
+update 日期维度 as a
+inner join temp as b 
+on a.日期=b.日期  and b.sku属性='top2000'
+set a.top2000动销=b.动销sku,a.top2000行数=b.订单行,a.top2000件数=b.发货量;
+
+update 日期维度 as a
+inner join temp as b 
+on a.日期=b.日期 and b.sku属性='top5000'
+set a.top5000动销=b.动销sku,a.top5000行数=b.订单行,a.top5000件数=b.发货量;
+
+update 日期维度 as a
+inner join temp as b 
+on a.日期=b.日期  and b.sku属性='top10000'
+set a.top10000动销=b.动销sku,a.top10000行数=b.订单行,a.top10000件数=b.发货量;
+
+update 日期维度 as a
+inner join temp as b 
+on a.日期=b.日期  and b.sku属性='top10000以外'
+set a.top10000以外动销=b.动销sku,a.top10000以外行数=b.订单行,a.top10000以外件数=b.发货量;
+
+drop table temp;
+
+create temporary table temp 
+select DATE(发货时间)as 日期,货架内外 as 货架内外,count(distinct 货物编码) as 动销sku,count(货物编码)as 订单行,SUM(发货量)as 发货量
+from 发货明细
+group by DATE(发货时间),货架内外;
+select 'temp' as 'step 10';
+
+update 日期维度 as a
+inner join temp as b 
+on a.日期=b.日期 and b.货架内外='货架内'
+set a.箱式系统内动销=b.动销sku,a.箱式系统内行数=b.订单行,a.箱式系统内件数=b.发货量;
+
+update 日期维度 as a
+inner join temp as b 
+on a.日期=b.日期 and b.货架内外='货架外'
+set a.箱式系统外动销=b.动销sku,a.箱式系统外行数=b.订单行,a.箱式系统外件数=b.发货量;
+
+
+
+
+
+
+
+
+insert into 日期小时维度(日期,发货小时,总订单数,动销sku数,出库总行数,出库总件数)
+select DATE(发货时间),hour(发货时间),count(distinct 订单号),count(distinct 货物编码),count(货物编码),sum(发货量)
+from 发货明细
+group by DATE(发货时间),hour(发货时间);
+ select '计算动销sku' as 'step 6';
+
+
+drop table temp;
+create temporary table temp 
+select DATE(发货时间)as 日期,hour(发货时间)as 小时,sku属性 as sku属性,count(distinct 货物编码) as 动销sku,count(货物编码)as 订单行,SUM(发货量)as 发货量
+from 发货明细
+group by DATE(发货时间),hour(发货时间),sku属性;
+select 'temp' as 'step 10';
+
+update 日期小时维度 as a
+inner join temp as b 
+on a.日期=b.日期 and a.发货小时=b.小时 and b.sku属性='top100'
+set a.top100动销=b.动销sku,a.top100行数=b.订单行,a.top100件数=b.发货量;
+
+update 日期小时维度 as a
+inner join temp as b 
+on a.日期=b.日期 and a.发货小时=b.小时 and b.sku属性='top2000'
+set a.top2000动销=b.动销sku,a.top2000行数=b.订单行,a.top2000件数=b.发货量;
+
+update 日期小时维度 as a
+inner join temp as b 
+on a.日期=b.日期 and a.发货小时=b.小时 and b.sku属性='top5000'
+set a.top5000动销=b.动销sku,a.top5000行数=b.订单行,a.top5000件数=b.发货量;
+
+update 日期小时维度 as a
+inner join temp as b 
+on a.日期=b.日期 and a.发货小时=b.小时 and b.sku属性='top10000'
+set a.top10000动销=b.动销sku,a.top10000行数=b.订单行,a.top10000件数=b.发货量;
+
+update 日期小时维度 as a
+inner join temp as b 
+on a.日期=b.日期 and a.发货小时=b.小时 and b.sku属性='top10000以外'
+set a.top10000以外动销=b.动销sku,a.top10000以外行数=b.订单行,a.top10000以外件数=b.发货量;
+
+drop table temp;
+create temporary table temp 
+select DATE(发货时间)as 日期,hour(发货时间)as 小时,货架内外 as 货架内外,count(distinct 货物编码) as 动销sku,count(货物编码)as 订单行,SUM(发货量)as 发货量
+from 发货明细
+group by DATE(发货时间),hour(发货时间),货架内外;
+
+
+update 日期小时维度 as a
+inner join temp as b 
+on a.日期=b.日期 and a.发货小时=b.小时 and b.货架内外='货架内'
+set a.箱式系统内动销=b.动销sku,a.箱式系统内行数=b.订单行,a.箱式系统内件数=b.发货量;
+
+update 日期小时维度 as a
+inner join temp as b 
+on a.日期=b.日期 and a.发货小时=b.小时 and b.货架内外='货架外'
+set a.箱式系统外动销=b.动销sku,a.箱式系统外行数=b.订单行,a.箱式系统外件数=b.发货量;
+
+
+
+
+
+
+
+
+update 发货明细
+set 小时时段=(case
+when hour(发货时间)='0' or hour(发货时间)='1' then '0-2点'
+when hour(发货时间)='2' or hour(发货时间)='3' then '2-4点'
+when hour(发货时间)='4' or hour(发货时间)='5' then '4-6点'
+when hour(发货时间)='6' or hour(发货时间)='7' then '6-8点'
+when hour(发货时间)='8' or hour(发货时间)='9' then '8-10点'
+when hour(发货时间)='10' or hour(发货时间)='11' then '10-12点'
+when hour(发货时间)='12' or hour(发货时间)='13' then '12-14点'
+when hour(发货时间)='14' or hour(发货时间)='15' then '14-16点'
+when hour(发货时间)='16' or hour(发货时间)='17' then '16-18点'
+when hour(发货时间)='18' or hour(发货时间)='19' then '18-20点'
+when hour(发货时间)='20' or hour(发货时间)='21' then '20-22点'
+when hour(发货时间)='22' or hour(发货时间)='23' then '22-24点'
+end);
+
+
+insert into 2小时日期维度(日期,小时时段,发货小时,总订单数,动销sku数,出库总行数,出库总件数)
+select DATE(发货时间),小时时段,hour(发货时间),count(distinct 订单号),count(distinct 货物编码),count(货物编码),sum(发货量)
+from 发货明细
+group by DATE(发货时间),小时时段;
+ select '计算动销sku' as 'step 6';
+
+
+drop table temp;
+create temporary table temp 
+select DATE(发货时间)as 日期,小时时段 as 小时时段,sku属性 as sku属性,count(distinct 货物编码) as 动销sku,count(货物编码)as 订单行,SUM(发货量)as 发货量
+from 发货明细
+group by DATE(发货时间),小时时段,sku属性;
+select 'temp' as 'step 10';
+
+update 2小时日期维度 as a
+inner join temp as b 
+on a.日期=b.日期 and a.小时时段=b.小时时段 and b.sku属性='top100'
+set a.top100动销=b.动销sku,a.top100行数=b.订单行,a.top100件数=b.发货量;
+
+update 2小时日期维度 as a
+inner join temp as b 
+on a.日期=b.日期 and a.小时时段=b.小时时段 and b.sku属性='top2000'
+set a.top2000动销=b.动销sku,a.top2000行数=b.订单行,a.top2000件数=b.发货量;
+
+update 2小时日期维度 as a
+inner join temp as b 
+on a.日期=b.日期 and a.小时时段=b.小时时段 and b.sku属性='top5000'
+set a.top5000动销=b.动销sku,a.top5000行数=b.订单行,a.top5000件数=b.发货量;
+
+update 2小时日期维度 as a
+inner join temp as b 
+on a.日期=b.日期 and a.小时时段=b.小时时段 and b.sku属性='top10000'
+set a.top10000动销=b.动销sku,a.top10000行数=b.订单行,a.top10000件数=b.发货量;
+
+update 2小时日期维度 as a
+inner join temp as b 
+on a.日期=b.日期 and a.小时时段=b.小时时段 and b.sku属性='top10000以外'
+set a.top10000以外动销=b.动销sku,a.top10000以外行数=b.订单行,a.top10000以外件数=b.发货量;
+
+drop table temp;
+create temporary table temp 
+select DATE(发货时间)as 日期,小时时段 as 小时时段,货架内外 as 货架内外,count(distinct 货物编码) as 动销sku,count(货物编码)as 订单行,SUM(发货量)as 发货量
+from 发货明细
+group by DATE(发货时间),小时时段,货架内外;
+
+
+update 2小时日期维度 as a
+inner join temp as b 
+on a.日期=b.日期 and a.小时时段=b.小时时段 and b.货架内外='货架内'
+set a.箱式系统内动销=b.动销sku,a.箱式系统内行数=b.订单行,a.箱式系统内件数=b.发货量;
+
+update 2小时日期维度 as a
+inner join temp as b 
+on a.日期=b.日期 and a.小时时段=b.小时时段 and b.货架内外='货架外'
+set a.箱式系统外动销=b.动销sku,a.箱式系统外行数=b.订单行,a.箱式系统外件数=b.发货量;
+
+
+
+
+update 订单号维度
+set 订单类别=(case
+when (top100订单行数>0 or top2000订单行数>0) and (top5000订单行数>0 or top10000订单行数>0 or 10000以外订单行数>0 or 羽绒订单行数>0) then '内外都含'
+when (top100订单行数>0 or top2000订单行数>0) and (top5000订单行数 is null or top10000订单行数 is null or 10000以外订单行数 is null or 羽绒订单行数 is null ) then '纯货架内'
+when (top100订单行数 is null  or top2000订单行数 is null ) and (top5000订单行数>0 or top10000订单行数>0 or 10000以外订单行数>0 or 羽绒订单行数>0) then '纯货架外'
+end);
+
+
+update 发货明细 as a
+inner join 订单号维度 as b 
+on a.订单号=b.订单号
+set a.货架内外=b.订单类别;
