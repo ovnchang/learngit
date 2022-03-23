@@ -1,0 +1,98 @@
+CREATE TABLE `hz_all` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `仓库名称` VARCHAR(30) DEFAULT NULL,
+  `货主名称` VARCHAR(30) DEFAULT NULL,
+  `订单号` VARCHAR(30) DEFAULT NULL,
+  `客户单号` VARCHAR(30) DEFAULT NULL,
+  `外部单号` VARCHAR(30) DEFAULT NULL,
+  `创建时间` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `下单时间` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `发货时间` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `下单方` VARCHAR(30) DEFAULT NULL,
+  `收货地址` VARCHAR(300) DEFAULT NULL,
+  `货物编码` VARCHAR(30) DEFAULT NULL, 
+  `货物名称` VARCHAR(30) DEFAULT NULL,
+  `货物英文名` VARCHAR(30) DEFAULT NULL,
+  `货物类别` VARCHAR(30) DEFAULT NULL,
+  `货物最小单元` VARCHAR(30) DEFAULT NULL,
+  `货物属性` VARCHAR(30) DEFAULT NULL,
+  `货物每单元件数` VARCHAR(30) DEFAULT NULL,
+  `赠品` VARCHAR(30) DEFAULT NULL,
+  `店铺` VARCHAR(30) DEFAULT NULL,
+  `面单号` VARCHAR(30) DEFAULT NULL,
+  `快递公司` VARCHAR(30) DEFAULT NULL,
+  `订单量` INT(11) DEFAULT NULL,
+  `发货量` INT(11) DEFAULT NULL,
+  `生产日期` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `失效日期` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `货物状态` VARCHAR(20) DEFAULT NULL,
+  `批次属性` VARCHAR(30) DEFAULT NULL,
+  `说明` VARCHAR(30) DEFAULT NULL,
+  `作业模式` VARCHAR(30) DEFAULT NULL,
+   PRIMARY KEY (`id`),
+   KEY `订单号`(`订单号`),
+   KEY `货物编码`(`货物编码`)
+ ) ENGINE=MYISAM; 
+
+
+alter hz_all add 货物每单元件数2 int(11);
+update hz_all set 货物每单元件数2=
+
+
+
+
+
+
+
+
+create temporary table temp 
+select 订单号,类别,count(类别) as olLine, sum(发货单元) as 发货单元，sum(发货量) as 发货量 
+from 11月15日至12月15日 
+group by 订单号,类别;
+
+update 11月订单号 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.A发货订单行=b.olline
+where b.类别='A';
+
+update 11月订单号 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.C发货订单行=b.olline
+where b.类别='C';
+
+update 11月订单号 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.A发货单元=b.发货单元
+where b.类别='A';
+
+update 11月订单号 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.C发货单元=b.发货单元
+where b.类别='C';
+
+update 11月订单号 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.A发货量=b.发货量
+where b.类别='A';
+
+update 11月订单号 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.C类发货量=b.发货量
+where b.类别='C';
+
+
+
+
+
+
+
+
+
+
+
