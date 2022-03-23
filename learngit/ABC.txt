@@ -1,0 +1,25 @@
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sumRate`(in TOTALRATE decimal(10,8),out II int)
+BEGIN
+
+select 1 into @i;
+select 0.0 into @s;
+while @s<TOTALRATE
+do
+select sum(销售件数比例) into @s from sku维度 where id<@i+1;
+set @i=@i+1;
+end while;
+select @i into II;
+
+END;
+
+CALL SUMRATE(0.7,@a);
+CALL SUMRATE(0.9,@b);
+
+select @a,@b;
+
+update sku维度
+set 销售属性 = (case
+        when id <(@a-1)  then 'A'  
+        when id >(@b-1)  then 'C'  
+        else 'B' 
+        END);
