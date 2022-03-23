@@ -1,0 +1,39 @@
+update EIQB2c a,发货明细  b
+set a.出库数量=(SELECT sum(发货量) from 发货明细 where 货物编码=a.sku号 and 作业模式='B2C' group by 货物编码)
+where a.sku号=b.货物编码;
+
+update EIQB2c a,收货清单多重复项  b
+set a.收货订单数=(SELECT count(b.asn单号) from 收货清单多重复项 where 货物编码=a.sku号 and 单据类型='到货通知单' group by 货物编码)
+where a.sku号=b.货物编码;
+
+update EIQB2c a,收货清单多重复项  b
+set a.收货数量=(SELECT sum(收货量) from 收货清单多重复项 where 货物编码=a.sku号 and 单据类型='到货通知单' group by 货物编码)
+where a.sku号=b.货物编码;
+
+update EIQB2c a,收货清单多重复项  b
+set a.退货订单数=(SELECT count(b.asn单号) from 收货清单多重复项 where 货物编码=a.sku号 and 单据类型='退货入库' group by 货物编码)
+where a.sku号=b.货物编码;
+
+update EIQB2c a,收货清单多重复项  b
+set a.退货数量=(SELECT sum(收货量) from 收货清单多重复项 where 货物编码=a.sku号 and 单据类型='退货入库' group by 货物编码)
+where a.sku号=b.货物编码;
+
+update EIQB2c as a 
+inner join 库存快照 as b on a.sku号=b.sku 
+set a.库存数量=b.库存数量 
+where a.库存数量 is null;
+
+
+update eiqb2c
+set 是否入箱式系统=(case
+when SKU类型=10 AND (收货数量>=60 or 出库数量>=60 or 库存数量>=60 ) then '15000以外'
+when SKU类型=20 AND (收货数量>=12 or 出库数量>=12 or 库存数量>=12) then '15000以外'
+when SKU类型=30 AND (收货数量>=60 or 出库数量>=40 or 库存数量>=60) then '15000以外'
+when SKU类型=31 AND (收货数量>=60 or 出库数量>=40 or 库存数量>=60) then '15000以外'
+when SKU类型=40 AND (收货数量>=800 or 出库数量>=400 or 库存数量>=800) then '15000以外'
+else '15000'
+end);
+
+select 是否入箱式系统,count(sku类型)from eiqb2c group by 是否入箱式系统;
+
+select sku类型,是否入箱式系统, count(库存数量) from eiqb2c group by sku类型,是否入箱式系统; 
