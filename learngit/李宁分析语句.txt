@@ -1,0 +1,362 @@
+insert into 每日情况(skucode) select distinct(货物编码) from 6到11号日发货量;
+
+update 6到11号日发货量 
+set 日期=dayofmonth(发货时间);
+
+create table temp 
+select 货物编码, 日期,sum(发货量) as 发货量
+from 6到11号日发货量
+group by 货物编码,日期;
+
+select 'temp' as 'temp';
+
+update 每日情况
+set 6日销量=(select 发货量 from temp where 每日情况.skucode=temp.货物编码 and temp.日期='6'),
+    7日销量=(select 发货量 from temp where 每日情况.skucode=temp.货物编码 and temp.日期='7'),
+    8日销量=(select 发货量 from temp where 每日情况.skucode=temp.货物编码 and temp.日期='8'),
+    9日销量=(select 发货量 from temp where 每日情况.skucode=temp.货物编码 and temp.日期='9'),
+    10日销量=(select 发货量 from temp where 每日情况.skucode=temp.货物编码 and temp.日期='10'),
+    11日销量=(select 发货量 from temp where 每日情况.skucode=temp.货物编码 and temp.日期='11');
+    
+    
+update 每日情况 as a
+inner join temp as b 
+on a.skucode=b.货物编码
+set a.6日销量=b.发货量 where b.日期='6' ;
+
+update 每日情况 as a
+inner join temp as b 
+on a.skucode=b.货物编码
+set 6日销量=(select 发货量 from temp where 日期='6'),
+    7日销量=(select 发货量 from temp where 日期='7');
+
+DROP TABLE temp；
+
+select distinct 日期 from 6到11号日发货量;
+
+insert into eiqB2B (SKU号,sku名称,出库订单数,出库数量) 
+SELECT distinct(货物编码),货物名称,count(货物编码),sum(发货量)
+FROM 发货明细 where 作业模式='B2C'
+group by 货物编码;
+
+insert into 收货(日期,收货SKU数,收货订单数,收货数) 
+select distinct(date(收货时间)),count(distinct 货物编码),count(distinct 外部单号),sum(收货量)
+from 收货清单多重复项
+where 单据类型='到货通知单'
+group by date(收货时间) ;
+
+insert into 收货(日期,收货订单号,收货订单行数,收货订单件数,订单类别,入库小时) 
+select date(收货时间),asn单号, count(distinct 货物编码),sum(收货量),单据类型,hour(收货时间)
+from 收货清单多重复项
+group by asn单号;
+
+
+update EIQB2c a,发货明细  b
+set a.出库数量=(SELECT sum(发货量) from 发货明细 where 货物编码=a.sku号 and 作业模式='B2C' group by 货物编码)
+where a.sku号=b.货物编码;
+
+update EIQB2c a,发货明细  b
+set a.出库订单数=(SELECT count(distinct b.订单号) from 发货明细 where 货物编码=a.sku号 and 作业模式='B2C' group by 货物编码)
+where a.sku号=b.货物编码;
+
+update EIQB2c a,收货清单多重复项  b
+set a.收货订单数=(SELECT count(distinct b.asn单号) from 收货清单多重复项 where 货物编码=a.sku号 and 单据类型='到货通知单' group by 货物编码)
+where a.sku号=b.货物编码;
+
+update EIQB2c a,收货清单多重复项  b
+set a.收货数量=(SELECT sum(收货量) from 收货清单多重复项 where 货物编码=a.sku号 and 单据类型='到货通知单' group by 货物编码)
+where a.sku号=b.货物编码;
+
+update EIQB2c a,收货清单多重复项  b
+set a.退货订单数=(SELECT count(distinct b.asn单号) from 收货清单多重复项 where 货物编码=a.sku号 and 单据类型='退货入库' group by 货物编码)
+where a.sku号=b.货物编码;
+
+update EIQB2c a,收货清单多重复项  b
+set a.退货数量=(SELECT sum(收货量) from 收货清单多重复项 where 货物编码=a.sku号 and 单据类型='退货入库' group by 货物编码)
+where a.sku号=b.货物编码;
+
+update EIQB2c a,库存快照  b
+set a.库存数量=(SELECT sum(库存数量) from 库存快照 where sku=a.sku号 group by sku)
+where a.sku号=b.sku;
+
+
+
+select distinct(month(收货时间)) from 收货清单多重复项;
+
+
+
+
+
+CREATE TABLE `SKU维度` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `货物编码` VARCHAR(30) DEFAULT NULL,
+  `订单量` INT(11) DEFAULT NULL,
+  `发货量` INT(11) DEFAULT NULL,
+  `发货占比`  numeric(8,4) DEFAULT  NULL,
+  `SKU属性` VARCHAR(30) DEFAULT NULL, 
+   PRIMARY KEY (`id`),
+   KEY `货物编码`(`货物编码`)
+ ) ENGINE=MYISAM;  
+select '建立Sku维度表格' as 'step 1';
+ 
+ 
+ insert into SKU维度(货物编码,订单量,发货量)
+ select 货物编码, sum(订单量)
+ sum(发货量)
+ from 发货明细
+ group by 货物编码
+ order by sum(发货量) DESC;
+ select '计算sku销量' as 'step 2';
+
+select sum(发货量) into @s from sku维度; 
+update sku维度 set 发货占比 = 发货量/@s;
+select '计算sku销量占比' as 'step 3';
+ 
+  
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sumRate`(in TOTALRATE decimal(10,8),out II int,out SS decimal(10,8))
+BEGIN
+select 1 into @i;
+select 0.0 into @s;
+while @s<TOTALRATE
+do
+select sum(发货占比) into @s from sku维度 where id<@i+1;
+set @i=@i+1;
+end while;
+select @i into II;
+select @s into SS;
+END;
+
+call sumrate(0.7,@id1,@s1) ; 
+call sumrate(0.9,@id2,@s2) ; 
+
+update sku维度
+set sku属性 = (case
+        when id <(@id1-1)  then 'A'  
+        when id >(@id2-1)  then 'C'  
+        else 'B' 
+        END ) ; 
+select '计算sku销售属性' as 'step 4';
+
+
+********************************************************************************************************************************************************
+ 
+CREATE TABLE `日期维度` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `日期` date DEFAULT NULL,
+  `货物类别` INT(11) DEFAULT NULL,
+  `总订单数` INT(11) DEFAULT NULL,
+  `动销SKU数` INT(11) DEFAULT NULL,
+  `出库订单行数` INT(11) DEFAULT NULL, 
+  `出库总件数` INT(11) DEFAULT NULL,
+   PRIMARY KEY (`id`)
+   )ENGINE=MYISAM;
+select '建立日期维度表' as 'step 5';	
+
+insert into 日期维度(日期,货物类别,总订单数,动销sku数,出库订单行数,出库总件数)
+select DATE(发货时间),货物类别,count(distinct 客户单号),count(distinct 货物编码),count(货物编码),sum(发货量)
+from 发货明细 where 作业模式='B2C'
+group by DATE(发货时间),货物类别;
+ select '计算动销sku' as 'step 6';
+ 
+drop table temp;
+create temporary table temp 
+select DATE(发货时间)as 日期,货物类别,count(distinct 客户单号) as 订单数,count(distinct 货物编码) as 动销sku,count(订单号)as 订单行,sum(发货量) as 发货量
+from 发货明细 where 是否入箱式货架="15000" and 作业模式='B2C'
+group by DATE(发货时间),货物类别;
+select 'temp' as 'step 10';
+
+update 日期维度 as a
+inner join temp as b 
+on a.日期=b.日期 and a.货物类别=b.货物类别
+set a.架内订单数=b.订单数,a.货架内动销sku=b.动销sku,a.货架内订单行数=b.订单行,a.货架内总件数=b.发货量;
+
+
+
+
+  insert into 日期维度(日期,货物类别,总订单数,动销sku数,出库订单行数,出库总件数)
+ select DATE(发货时间),货物类别,count(distinct 客户单号),count(distinct 货物编码),count(订单号),sum(发货量)
+ from 发货明细 where 是否入箱式货架="15000"
+ group by DATE(发货时间),货物类别;
+ select '计算动销sku' as 'step 6';
+ 
+ 
+ 
+ 
+********************************************************************************************************************************************************		
+CREATE TABLE `订单号维度` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+   `订单号` VARCHAR(30) DEFAULT NULL,
+   `订单行数` INT(11) DEFAULT NULL,
+   `订单件数` INT(11) DEFAULT NULL,
+   `year` INT(11) DEFAULT NULL,
+   `month` INT(11) DEFAULT NULL,
+   `day` INT(11) DEFAULT NULL,
+   `hour` INT(11) DEFAULT NULL,
+   `A类订单行数` INT(11) DEFAULT NULL,
+   `A类订单件数` INT(11) DEFAULT NULL,
+   `B类订单行数` INT(11) DEFAULT NULL,
+   `B类订单件数` INT(11) DEFAULT NULL,
+   `C类订单行数` INT(11) DEFAULT NULL,
+   `C类订单件数` INT(11) DEFAULT NULL,
+   `订单属性` VARCHAR(30) DEFAULT NULL,  
+   PRIMARY KEY (`id`),
+   KEY `订单号`(`订单号`)
+ ) ENGINE=MYISAM;   
+ select '建立订单号维度表' as 'step 7';	
+ 
+insert into 订单号维度 (订单号,订单行数,订单件数,year,month,day,接单小时,发货小时,发货日) 
+SELECT distinct(订单号),count(distinct 货物编码),sum(发货量),year(下单时间),month(下单时间),dayofmonth(下单时间),hour(下单时间),hour(发货时间),date(发货时间)
+FROM 发货明细  where 作业模式='B2C'
+group by 订单号;
+select '订单号维度总数计算' as 'step 8';	 
+
+
+alter table 发货明细 add sku属性 char(10);
+
+update 发货明细 a,SKU维度 b
+set a.sku属性=b.sKu属性
+where a.货物编码=b.货物编码;  
+select '给原始销售表增加skuABC属性' as 'step 9';
+
+
+drop table temp;
+create temporary table temp 
+select 订单号,SKU属性,count(distinct 货物编码) as OL,sum(发货量) as 发货量
+from 发货明细
+group by 订单号,SKU属性;
+select 'temp' as 'step 10';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.A类订单行数=b.OL , a.A类订单件数=b.发货量
+where b.SKU属性='A';
+select 'A' as 'step 11';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.B类订单行数=b.OL,a.B类订单件数=b.发货量
+where b.SKU属性='B';
+select 'B' as 'step 12';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.C类订单行数=b.OL,a.C类订单件数=b.发货量
+where b.SKU属性='C';	
+select 'B' as 'step 13';
+
+drop table temp;
+create temporary table temp 
+select 订单号,货物类别,count(distinct 货物编码) as OL,sum(发货量) as 发货量
+from 发货明细
+group by 订单号,货物类别;
+select 'temp' as 'step 10';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.类别10订单行数=b.OL , a.类别10件数=b.发货量
+where b.货物类别='10';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.类别20订单行数=b.OL , a.类别20件数=b.发货量
+where b.货物类别='20';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.类别30订单行数=b.OL , a.类别30件数=b.发货量
+where b.货物类别='30';
+
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.类别31订单行数=b.OL , a.类别31件数=b.发货量
+where b.货物类别='31';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.类别40订单行数=b.OL , a.类别40件数=b.发货量
+where b.货物类别='40';
+
+
+
+
+
+
+update eiqb2c
+set 是否入箱式系统=(case
+when SKU类型='B2B' then '15000以外'
+when SKU类型=10 AND (收货数量>=100 or 出库数量>=100 or 库存数量>=100) then '15000以外'
+when SKU类型=20 AND (收货数量>=6 or 出库数量>=6 or 库存数量>=6) then '15000以外'
+when SKU类型=30 AND (收货数量>=30 or 出库数量>=30 or 库存数量>=30) then '15000以外'
+when SKU类型=31  then '15000以外'
+when SKU类型=40  then '15000以外'
+when SKU类型=100 then '15000以外'
+else '15000'
+end);
+
+select 是否入箱式系统,count(库存数量),sum(库存数量)from eiqb2c group by 是否入箱式系统;
+
+select sku类型,是否入箱式系统, count(库存数量) from eiqb2c group by sku类型,是否入箱式系统; 
+
+update 库存快照 a,eiqb2c b
+set a.是否入箱式货架=b.是否入箱式系统
+where a.sku=b.SKU号;
+select 'A' as 'step 1';
+
+update 发货明细 a,eiqb2c b
+set a.是否入箱式货架=b.是否入箱式系统
+where a.货物编码=b.SKU号;
+select 'A' as 'step 2';
+
+drop table temp;
+create temporary table temp 
+select 订单号,是否入箱式货架,count(货物编码) as OL,sum(发货量) as 发货量
+from 发货明细 
+group by 订单号,是否入箱式货架;
+select 'temp' as 'step 10';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.箱式系统内行数=b.OL , a.箱式系统内件数=b.发货量
+where b.是否入箱式货架='15000';
+select 'A' as 'step 11';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.箱式系统外行数=b.OL , a.箱式系统外件数=b.发货量
+where b.是否入箱式货架='15000以外';
+select 'A' as 'step 11';
+
+drop table temp;
+create temporary table temp 
+select 订单号,hour(发货时间) as 发货小时
+from 发货明细
+group by 订单号;
+select 'temp' as 'step 10';
+
+update 订单号维度 as a
+inner join temp as b 
+on a.订单号=b.订单号
+set a.发货小时=b.发货小时;
+select 'A' as 'step 11';
+
+ insert into 小时动销sku(日期,发货小时,动销sku)
+ select dayofmonth(发货时间),hour(发货时间),count(distinct 货物编码)
+ from 发货明细 where 是否入箱式货架='15000' and 作业模式='B2C'
+ group by dayofmonth(发货时间),hour(发货时间);
+ 
+ select distinct date(下单时间) from 发货明细;
+ 
+ select distinct 货物类别 from 发货明细;
+ 
+select distinct date(发货时间) from 发货明细;
