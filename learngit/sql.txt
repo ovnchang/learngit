@@ -1,0 +1,206 @@
+----出库按日量分析
+SELECT 
+dj.otime as 日期,
+COUNT(DISTINCT dj.[order]) as 订单数,
+COUNT(DISTINCT dj.skucode) as sku数,
+SUM(dj.qty) as 订单量,
+SUM(dj.qty)/COUNT(DISTINCT dj.[order]) as EQ 
+FROM djoutdata as dj 
+WHERE dj.[order] LIKE 'B%'
+GROUP BY dj.otime 
+ORDER BY dj.otime;
+
+--****************************************************************************
+
+----出库EQ
+SELECT 订单件数,COUNT(DISTINCT 订单号) AS 单量,SUM(订单件数) AS 件数
+FROM 
+	(SELECT dj.[order] as 订单号,COUNT(DISTINCT dj.skucode) AS 订单行数,SUM(dj.qty) AS 订单件数
+	FROM djoutdata as dj
+	GROUP BY dj.[order]
+	) TT
+GROUP BY 订单件数
+ORDER BY 订单件数
+
+----出库EQ
+SELECT 
+CASE
+	when 订单件数<10 then  '10件以下'
+	WHEN 订单件数>=10 AND 订单件数<=100 then '10-100件'
+	WHEN 订单件数>100 then '100件以上'
+ELSE NULL END as 分段,
+SUM(单量) as 订单数,sum(件数) as 件数
+FROM
+(SELECT 订单件数,COUNT(DISTINCT 订单号) AS 单量,SUM(订单件数) AS 件数
+FROM 
+	(SELECT dj.[order] as 订单号,COUNT(DISTINCT dj.skucode) AS 订单行数,SUM(dj.qty) AS 订单件数
+	FROM djoutdata as dj
+	GROUP BY dj.[order]
+	) TT
+GROUP BY 订单件数) TT
+GROUP BY
+CASE
+	when 订单件数<10 then  '10件以下'
+	WHEN 订单件数>=10 AND 订单件数<=100 then '10-100件'
+	WHEN 订单件数>100 then '100件以上'
+ELSE NULL END
+
+--****************************************************************************
+
+-----出库EN
+SELECT 订单行数,COUNT(DISTINCT 订单号) AS 单量,SUM(订单件数) AS 件数
+FROM 
+	(SELECT dj.[order] as 订单号,COUNT(DISTINCT dj.skucode) AS 订单行数,SUM(dj.qty) AS 订单件数
+	FROM djoutdata as dj
+	GROUP BY dj.[order]
+	) TT
+GROUP BY 订单行数
+ORDER BY 订单行数
+
+----出库EN
+SELECT 
+CASE
+	when 订单行数<3 then  '3行以下'
+	when 订单行数>=3 AND 订单行数<=5 then  '3-5行'
+	when 订单行数>5 AND 订单行数<=10 then  '6-10行'
+	when 订单行数>10 AND 订单行数<=100 then '11-100行'
+	when 订单行数>100 then '100行以上'
+ELSE NULL END as 分段,
+SUM(单量) as 订单数,sum(件数) as 件数
+FROM
+(SELECT 订单行数,COUNT(DISTINCT 订单号) AS 单量,SUM(订单件数) AS 件数
+FROM 
+	(SELECT dj.[order] as 订单号,COUNT(DISTINCT dj.skucode) AS 订单行数,SUM(dj.qty) AS 订单件数
+	FROM djoutdata as dj
+	GROUP BY dj.[order]
+	) TT
+GROUP BY 订单行数) TT
+GROUP BY
+CASE
+	when 订单行数<3 then  '3行以下'
+	when 订单行数>=3 AND 订单行数<=5 then  '3-5行'
+	when 订单行数>5 AND 订单行数<=10 then  '6-10行'
+	when 订单行数>10 AND 订单行数<=100 then '11-100行'
+	when 订单行数>100 then '100行以上'
+ELSE NULL END
+
+
+
+--****************************************************************************
+
+
+----按订单行数分
+select
+类别,count(订单号) as 单行单量,sum(订单件数) as 单行件数
+ from (SELECT ln.SoNum as 订单号,COUNT(DISTINCT ln.SkuNum) AS 订单行数,SUM(ln.DeliveryQty) AS 订单件数,ln.Type AS 类别
+	FROM lnoutdata as ln
+  	GROUP BY ln.SoNum,ln.Type
+	) TT 
+WHERE 订单行数=1
+GROUP BY 类别;
+
+select
+类别,count(订单号) as 多行单量,sum(订单件数) as 多行件数
+ from (SELECT ln.SoNum as 订单号,COUNT(DISTINCT ln.SkuNum) AS 订单行数,SUM(ln.DeliveryQty) AS 订单件数,ln.Type AS 类别
+	FROM lnoutdata as ln
+  	GROUP BY ln.SoNum,ln.Type
+	) TT 
+WHERE 订单行数>1
+GROUP BY 类别;
+
+--****************************************************************************
+
+----按订单件数分
+select
+类别,count(订单号) as 单件单量,sum(订单件数) as 单件件数
+ from (SELECT ln.SoNum as 订单号,COUNT(DISTINCT ln.SkuNum) AS 订单行数,SUM(ln.DeliveryQty) AS 订单件数,ln.Type AS 类别
+	FROM lnoutdata as ln
+  	GROUP BY ln.SoNum,ln.Type
+	) TT 
+WHERE 订单件数=1
+GROUP BY 类别;
+
+select
+类别,count(订单号) as 多件单量,sum(订单件数) as 多件件数
+ from (SELECT ln.SoNum as 订单号,COUNT(DISTINCT ln.SkuNum) AS 订单行数,SUM(ln.DeliveryQty) AS 订单件数,ln.Type AS 类别
+	FROM lnoutdata as ln
+  	GROUP BY ln.SoNum,ln.Type
+	) TT 
+WHERE 订单件数>1
+GROUP BY 类别;
+
+--****************************************************************************
+SELECT DISTINCT o.skucode as sku,o.otime as outtime
+FROM djindata as i,djoutdata as o
+WHERE i.skucode=o.skucode AND o.otime=CONVERT(varchar(10),CAST(i.itime as datetime),120) AND DATEPART(hh,CAST(i.itime as datetime))>17
+
+SELECT i.skuname,i.itime,sum(i.qty)
+FROM djindata as i,out as o
+WHERE i.skucode=o.skucode and CONVERT(varchar(10),CAST(i.itime as datetime),120)=o.otime  AND DATEPART(hh,CAST(i.itime as datetime))>17
+GROUP BY i.skuname,i.itime
+
+
+UPDATE djoutdata SET  xiangjianshu=CAST(SUBSTRING(shuxin3, CHARINDEX('[', shuxin3)+1, CHARINDEX('/', shuxin3)-CHARINDEX('[', shuxin3)-2) AS INT)
+
+update djoutdata set xiangshu=(qty+0.0)/xiangjianshu
+
+UPDATE djoutdata SET otime=CONVERT(varchar(10),CAST(otime as datetime),120)
+
+UPDATE djoutdata SET  djoutdata.tiji=djoutdata.qty*djsku.tiji/1000000,djoutdata.weight=djoutdata.qty*djsku.weight
+FROM djoutdata,djsku WHERE djoutdata.skucode=djsku.skuid
+
+
+SELECT tt.a,COUNT(tt.b),SUM(tt.c),SUM(tt.d),SUM(tt.e),SUM(tt.f)
+FROM
+(SELECT COUNT(o.[order]) as a,o.[order] as b,SUM(o.qty) as c,SUM(o.jianxuancishu) as d,SUM(o.tiji) as e,SUM(o.weight) as f
+FROM djoutdata as o
+GROUP BY o.[order]
+)tt
+GROUP BY tt.a
+ORDER BY tt.a
+
+SELECT o.otime,COUNT(DISTINCT o.[order]),COUNT(o.[order]),SUM(o.qty),SUM(o.jianxuancishu),SUM(o.tiji),SUM(o.weight)
+FROM djoutdata as o
+GROUP BY o.otime
+ORDER BY o.otime
+
+SELECT o.skucode,o.skuname,SUM(o.qty),SUM(o.jianxuancishu),COUNT(o.[order])
+FROM djoutdata as o
+GROUP BY o.skucode,o.skuname
+ORDER BY SUM(o.qty) DESC
+
+
+所有订单号
+INSERT INTO toptable(code) SELECT DISTINCT [order] as od
+FROM djoutdata
+
+不是topsku完整完成的订单
+INSERT INTO temp_copy(orderid) SELECT DISTINCT o.[order]
+FROM djoutdata as o
+WHERE o.skucode NOT IN (SELECT skucode FROM djsku1)
+
+topsku完整完成的订单
+INSERT INTO temp(orderid)
+SELECT code FROM
+toptable WHERE code NOT IN
+(SELECT DISTINCT orderid
+FROM temp_copy)
+
+SELECT otime,COUNT(DISTINCT skucode),SUM(qty),SUM(jianxuancishu)
+FROM djoutdata
+WHERE [order] IN
+(SELECT orderid FROM temp)
+GROUP BY otime
+
+SELECT CONVERT(varchar(10),CAST(i.itime as datetime),120),COUNT(DISTINCT i.asn),COUNT(i.skucode),SUM(i.qty)
+FROM djindata as i
+GROUP BY CONVERT(varchar(10),CAST(i.itime as datetime),120)
+ORDER BY CONVERT(varchar(10),CAST(i.itime as datetime),120)
+
+SELECT CONVERT(varchar(10),CAST(o.otime as datetime),120),i.skuname,SUM(i.qty),SUM(o.qty)
+FROM djindata as i,djoutdata as o
+WHERE CONVERT(varchar(10),CAST(i.itime as datetime),120)=CONVERT(varchar(10),CAST(o.otime as datetime),120)
+AND i.skucode=o.skucode
+AND CONVERT(int,DATEPART(hh,CAST(itime as datetime)))>17
+GROUP BY CONVERT(varchar(10),CAST(o.otime as datetime),120),i.skuname
+ORDER BY CONVERT(varchar(10),CAST(o.otime as datetime),120)
