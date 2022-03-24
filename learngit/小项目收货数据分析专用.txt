@@ -1,0 +1,4 @@
+insert into 收货(日期,收货订单号,收货订单行数,收货订单件数,订单类别,入库小时) 
+select date(收货时间),asn单号, count(distinct 货物编码),sum(收货量),单据类型,hour(收货时间)
+from 收货清单多重复项
+group by asn单号;
